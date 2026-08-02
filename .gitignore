@@ -1,0 +1,43 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# --- Environment ---
+.env
+.env.local
+.env.*.local
+
+# --- Testing / tooling ---
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+node_modules/
+
+# --- LangGraph / LangSmith ---
+.langgraph/
+langsmith-*.log
+
+# --- Data ---
+*.db
+*.sqlite3
+data/cache/
+
+# --- OS / editor ---
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# --- Deploy artifacts ---
+*.pid
+nohup.out
