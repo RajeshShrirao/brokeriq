@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from functools import lru_cache
 
-from qdrant_client import models
+from qdrant_client import QdrantClient, models
 
 from ..config import get_settings
 from .ingest import Chunk

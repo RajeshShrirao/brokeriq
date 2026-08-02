@@ -2,7 +2,6 @@
 so the suite stays fast and needs no API keys or docker."""
 
 import pytest
-from qdrant_client import QdrantClient
 
 from brokeriq.rag import build_client, hybrid_search, load_corpus, split_markdown, upsert_chunks
 from brokeriq.rag.embeddings import embed_sparse, embed_texts
