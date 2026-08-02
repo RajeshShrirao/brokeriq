@@ -100,7 +100,9 @@ class FakeLLM:
     def _company(user: str) -> str:
         for line in user.splitlines():
             if line.startswith("Company:"):
-                return line.split(":", 1)[1].strip()
+                name = line.split(":", 1)[1].strip()
+                # strip the "(run <id>)" suffix the memory extractor appends
+                return name.split(" (run ")[0]
         return "unknown"
 
     @staticmethod

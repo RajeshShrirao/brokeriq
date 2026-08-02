@@ -38,6 +38,7 @@ async def _run(args: argparse.Namespace) -> dict:
 
     from . import llm as llm_module
     from .graph import build_graph
+    from .store import memory_store_scope
 
     if args.offline:
         from .fake import FakeLLM
@@ -56,8 +57,8 @@ async def _run(args: argparse.Namespace) -> dict:
     run_id = uuid.uuid4().hex[:12]
     config = {"configurable": {"thread_id": f"cli-{run_id}"}}
 
-    async with AsyncSqliteSaver.from_conn_string(args.db) as checkpointer:
-        app = build_graph(checkpointer=checkpointer)
+    async with AsyncSqliteSaver.from_conn_string(args.db) as checkpointer, memory_store_scope() as store:
+        app = build_graph(checkpointer=checkpointer, store=store)
         return await app.ainvoke({"lead": lead, "run_id": run_id}, config=config)
 
 def main() -> None:
