@@ -3,9 +3,11 @@
 import logging
 from pathlib import Path
 
+from ..cache import get_cache
 from ..config import get_settings
 from ..rag import build_client, hybrid_search, load_corpus, upsert_chunks
 from ..rag.embeddings import embed_sparse, embed_texts
+from ..rag.rerank import rerank
 
 logger = logging.getLogger(__name__)
 
@@ -29,13 +31,26 @@ def ensure_indexed() -> None:
 
 
 async def compliance_search(query: str, limit: int = 5) -> list[dict]:
-    """Return citation-ready compliance/coverage facts for a query."""
+    """Return citation-ready compliance/coverage facts for a query.
+
+    Results are served from the two-tier semantic cache when possible, so
+    repeat and near-duplicate queries skip embedding + vector search entirely.
+    """
     ensure_indexed()
     client = build_client()
 
     dense = embed_texts([query])[0]
-    sparse = embed_sparse([query])[0]
-    hits = hybrid_search(client, dense, sparse, query, limit=limit)
 
+    cache = get_cache()
+    cached = await cache.get(query, dense)
+    if cached is not None:
+        logger.info("compliance search %r served from cache", query)
+        return cached[:limit]
+
+    sparse = embed_sparse([query])[0]
+    hits = hybrid_search(client, dense, sparse, query, limit=limit * 3)
+    hits = rerank(hits, query, top_k=limit)
+
+    await cache.put(query, dense, hits)
     logger.info("compliance search %r -> %d hits", query, len(hits))
     return hits

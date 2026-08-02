@@ -56,6 +56,8 @@ class Settings(BaseSettings):
     # Application
     corpus_dir: str = "data/corpus"
     cache_ttl: int = 3600
+    cache_similarity_threshold: float = 0.92
+    reranker_enabled: bool = False
     web_search_provider: Literal["ddgs", "tavily"] = "ddgs"
     tavily_api_key: str | None = Field(
         default=None, validation_alias=AliasChoices("TAVILY_API_KEY", "BROKERIQ_TAVILY_API_KEY")

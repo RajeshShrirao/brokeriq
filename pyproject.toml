@@ -24,6 +24,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "fakeredis>=2.37.0",
     "hatchling>=1.31.0",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
