@@ -40,6 +40,11 @@ packages = ["src/brokeriq"]
 [tool.ruff]
 line-length = 110
 
+[tool.ruff.lint]
+# BLE001: connection fallbacks and search wrappers intentionally catch broadly —
+# third-party clients raise a grab-bag of exceptions we treat as "unavailable".
+ignore = ["BLE001"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

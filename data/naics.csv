@@ -1,0 +1,26 @@
+code,label,keywords
+11,Agriculture / Farming,agriculture|farm|ranch|agri|crop|livestock
+21,Mining / Oil & Gas,mining|oil|gas|energy|drilling|extraction
+22,Utilities,electric|utility|power|water|gas utility|renewable
+23,Construction,construction|contractor|builder|general contractor|subcontractor|roofing|electrical contractor|plumbing
+31,Food Manufacturing,food manufacturing|bakery|beverage|brewery|distillery|packaging
+32,Chemicals / Plastics Manufacturing,chemical|plastic|polymer|pharmaceutical manufacturing|rubber
+33,Machinery / Electronics Manufacturing,machinery|electronics|semiconductor|fabrication|manufacturing|assembly|precision
+42,Wholesale Distribution,wholesale|distribution|distributor|supply chain|logistics broker
+44,Retail (General),retail|store|shop|ecommerce|e-commerce|marketplace|boutique
+45,Retail (Auto / Parts),auto dealer|car dealership|automotive|parts|tires|motorcycle
+48,Transportation & Warehousing,trucking|freight|logistics|warehouse|warehousing|courier|delivery|3pl
+49,Rail / Water / Air Transport,railroad|shipping|maritime|airline|aviation|freight forwarder
+51,Publishing & Media,publishing|media|news|broadcast|advertising agency|marketing agency
+52,Banking & Finance,finance|bank|fintech|investment|asset management|payments|credit union|lending
+53,Real Estate & Leasing,real estate|property management|leasing|commercial real estate|cre|landlord
+54,Professional Services (Legal/Accounting/Consulting),consulting|legal|law firm|accounting|cpa|tax|management consulting|advisory
+5415,Technology & Software,software|saas|technology|it services|cybersecurity|cloud|data|ai|app development|devops
+55,Corporate Management,holding company|management company|corporate|parent company
+56,Administrative & Staffing,staffing|recruiting|temporary|janitorial|security services|call center|bpo
+61,Education,education|school|university|training|college|childcare|preschool
+62,Healthcare & Clinics,healthcare|clinic|medical|dental|hospital|urgent care|therapist|home health|behavioral health
+71,Arts & Entertainment,entertainment|events|concert|production|venue|amusement|film|studio
+72,Restaurants & Hospitality,restaurant|cafe|hotel|hospitality|bar|food service|catering|brewpub
+81,Personal Services,salon|spa|fitness|gym|repair|laundry|auto repair|body shop|beauty
+92,Public Administration,government|municipal|public works|nonprofit|ngo|association
