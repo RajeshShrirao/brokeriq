@@ -18,9 +18,11 @@ def fast_embeddings(monkeypatch):
 
     get_settings.cache_clear()
     store.get_client.cache_clear()
+    store._memory_client = None
     yield
     get_settings.cache_clear()
     store.get_client.cache_clear()
+    store._memory_client = None
 
 
 def _sample_chunks() -> list[Chunk]:

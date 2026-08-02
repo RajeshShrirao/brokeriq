@@ -68,9 +68,11 @@ class AgentState(TypedDict, total=False):
     """State flowing through the graph. Total=False so nodes only touch what they need."""
 
     lead: LeadInput
-    research: ResearchReport
-    qualification: QualificationResult
-    brief: LeadBrief
-    memory_ops: list[MemoryOp]
+    research: ResearchReport | None
+    qualification: QualificationResult | None
+    brief: LeadBrief | None
+    memory_ops: list[MemoryOp] | None
+    next_stage: str
+    skip_report: bool
     messages: Annotated[list, add_messages]
     run_id: str

@@ -22,7 +22,7 @@ class Settings(BaseSettings):
 
     # LLM
     model: str = "openrouter/google/gemini-2.5-flash"
-    embedding_model: str = "BAAI/bge-m3"
+    embedding_model: str = "BAAI/bge-base-en-v1.5"
     reranker_model: str = "BAAI/bge-reranker-v2-m3"
     openrouter_api_key: str | None = Field(
         default=None, validation_alias=AliasChoices("OPENROUTER_API_KEY", "BROKERIQ_OPENROUTER_API_KEY")

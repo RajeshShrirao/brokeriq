@@ -1,65 +1,68 @@
-"""Graph assembly.
+"""Graph assembly: supervisor routing over specialist agents with a HITL gate.
 
-For now this is a deliberately minimal two-node graph used to validate the
-checkpointer wiring and the CLI. The real supervisor/specialist layout lands in
-`agents/` as the pipeline grows.
+Flow:
+    START -> supervisor -> research/qualification/report/memory -> ... -> END
+    qualification -> gate (human-in-the-loop interrupt on risky verdicts)
+
+The supervisor is LLM-routed with a deterministic rule fallback, so the graph
+runs end-to-end even with no model configured (offline/demo mode).
 """
 
 import logging
 
-from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 
-from .llm import complete
-from .models import AgentState, LeadInput
+from .agents.gate import compliance_gate_node
+from .agents.memory import memory_node
+from .agents.qualification import qualification_node
+from .agents.report import report_node
+from .agents.research import research_node
+from .agents.supervisor import supervisor_node
+from .models import AgentState
 
 logger = logging.getLogger(__name__)
 
-
-async def _greet(state: AgentState) -> dict:
-    """Node 1: acknowledge the lead and confirm we parsed it."""
-    lead: LeadInput = state["lead"]
-    logger.info("received lead: %s (%s)", lead.company_name, lead.industry or "unknown industry")
-    return {"messages": [{"role": "assistant", "content": f"Analyzing {lead.company_name}..."}]}
-
-
-async def _summarize(state: AgentState) -> dict:
-    """Node 2: ask the LLM to summarize what a qualification run will do."""
-    lead = state["lead"]
-    text = await complete(
-        messages=[
-            {
-                "role": "system",
-                "content": "You are the planner for a lead-qualification pipeline.",
-            },
-            {
-                "role": "user",
-                "content": (
-                    f"Company: {lead.company_name}\n"
-                    f"Domain: {lead.domain or 'unknown'}\n"
-                    f"Revenue band: {lead.revenue_band}\n"
-                    "In one sentence, state what facts would determine whether this "
-                    "company is worth pursuing as a commercial-insurance prospect."
-                ),
-            },
-        ]
-    )
-    return {"messages": [{"role": "assistant", "content": text}]}
+SUPERVISOR_ROUTES = {
+    "research": "research",
+    "qualification": "qualification",
+    "report": "report",
+    "memory": "memory",
+    "done": END,
+}
 
 
-async def build_graph(checkpointer: SqliteSaver | None = None):
+def _route_supervisor(state: AgentState) -> str:
+    return state.get("next_stage", "done")
+
+
+def _route_gate(state: AgentState) -> str:
+    # hard-disqualified leads skip the report writer but still get memory extraction
+    return "memory" if state.get("skip_report") else "supervisor"
+
+
+def build_graph(checkpointer=None, store=None):
+    """Assemble and compile the qualification pipeline.
+
+    checkpointer: LangGraph BaseCheckpointSaver (SqliteSaver for dev,
+        AsyncPostgresSaver for prod). A missing checkpointer disables
+        persistence and human-in-the-loop resume.
+    store: optional BaseStore for long-term memory.
+    """
     graph = StateGraph(AgentState)
-    graph.add_node("greet", _greet)
-    graph.add_node("summarize", _summarize)
-    graph.add_edge(START, "greet")
-    graph.add_edge("greet", "summarize")
-    graph.add_edge("summarize", END)
-    return graph.compile(checkpointer=checkpointer)
 
+    graph.add_node("supervisor", supervisor_node)
+    graph.add_node("research", research_node)
+    graph.add_node("qualification", qualification_node)
+    graph.add_node("gate", compliance_gate_node)
+    graph.add_node("report", report_node)
+    graph.add_node("memory", memory_node)
 
-async def run_offline(lead: LeadInput) -> list[str]:
-    """Deterministic path for local/dev runs without any API key."""
-    return [
-        f"received lead: {lead.company_name}",
-        f"planned qualification of {lead.company_name} (offline mode)",
-    ]
+    graph.add_edge(START, "supervisor")
+    graph.add_conditional_edges("supervisor", _route_supervisor, SUPERVISOR_ROUTES)
+    graph.add_edge("research", "supervisor")
+    graph.add_edge("qualification", "gate")
+    graph.add_conditional_edges("gate", _route_gate, {"supervisor": "supervisor", "memory": "memory"})
+    graph.add_edge("report", "supervisor")
+    graph.add_edge("memory", END)
+
+    return graph.compile(checkpointer=checkpointer, store=store)

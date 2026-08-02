@@ -52,3 +52,43 @@ async def complete(
     except Exception as exc:  # litellm raises a grab-bag of exceptions
         logger.error("LLM call failed (model=%s): %s", model, exc)
         raise
+
+
+async def complete_json(
+    messages: list[dict],
+    model: str | None = None,
+    temperature: float = 0.0,
+) -> dict:
+    """Run a chat completion and parse a JSON object out of the response.
+
+    Retries once with a corrective hint when the model returns unparseable
+    output (markdown fences, trailing prose, etc.).
+    """
+    import json
+    import re
+
+    raw = await complete(messages=messages, model=model, temperature=temperature, json_mode=True)
+    text = raw.strip()
+    fenced = re.match(r"^```(?:json)?\s*(.*?)\s*```$", text, re.DOTALL)
+    if fenced:
+        text = fenced.group(1)
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        logger.warning("LLM returned invalid JSON; retrying with a corrective hint")
+        corrected = messages + [
+            {
+                "role": "user",
+                "content": (
+                    "Your previous reply was not valid JSON. Reply with ONLY a "
+                    "valid JSON object, no markdown fences, no commentary."
+                ),
+            }
+        ]
+        raw = await complete(messages=corrected, model=model, temperature=temperature, json_mode=True)
+        text = raw.strip()
+        fenced = re.match(r"^```(?:json)?\s*(.*?)\s*```$", text, re.DOTALL)
+        if fenced:
+            text = fenced.group(1)
+        return json.loads(text)
