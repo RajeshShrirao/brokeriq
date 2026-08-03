@@ -1,0 +1,47 @@
+# promptfoo config for BrokerIQ evals.
+#
+# Runs the compliance_search tool (via a Python provider that calls the real
+# hybrid RAG stack) and asserts every gold query surfaces its expected
+# carrier doc. Used by CI: `npx promptfoo eval -c promptfoo.yaml`.
+#
+# Run locally with the project venv python:
+#   PROMPTFOO_PYTHON=$PWD/.venv/bin/python npx promptfoo eval -c promptfoo.yaml
+#
+# The provider returns the search payload as a JSON string, so the
+# `contains` assertions match on the serialized doc ids inside it.
+
+prompts:
+  - "{{query}}"
+
+providers:
+  - id: file://evals/promptfoo_provider.py
+    label: compliance_search
+
+tests:
+  - vars:
+      query: "do carriers require MFA on email and remote access?"
+    assert:
+      - type: contains
+        value: cyber-liability-basics
+      - type: javascript
+        value: "JSON.parse(output).length >= 1"
+  - vars:
+      query: "can employers in texas opt out of workers compensation?"
+    assert:
+      - type: contains
+        value: workers-comp-by-state
+  - vars:
+      query: "is pollution coverage excluded under general liability?"
+    assert:
+      - type: contains
+        value: commercial-general-liability
+  - vars:
+      query: "what cyber coverage is available for small businesses?"
+    assert:
+      - type: contains
+        value: cyber-liability-basics
+  - vars:
+      query: "are there workers compensation requirements in california?"
+    assert:
+      - type: javascript
+        value: "JSON.parse(output).length >= 1"
