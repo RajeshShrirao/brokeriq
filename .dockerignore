@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.git/
+.gitignore
+.env
+.env.*
+*.db
+*.sqlite3
+data/cache/
+node_modules/
+promptfoo-output/

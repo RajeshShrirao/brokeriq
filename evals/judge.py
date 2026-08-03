@@ -89,9 +89,9 @@ def compliance_retrieval_score() -> dict[str, Any]:
     reranker, exactly like production. Verifies each gold query surfaces its
     expected doc in the top 5.
     """
-    from brokeriq.tools.compliance_rag import compliance_search
-
     import asyncio
+
+    from brokeriq.tools.compliance_rag import compliance_search
 
     async def _run() -> dict[str, Any]:
         hits_per_query: list[list[str]] = []

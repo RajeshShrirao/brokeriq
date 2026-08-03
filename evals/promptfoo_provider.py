@@ -22,7 +22,7 @@ import os
 # Keep the embedder small for CI speed; safe to override via env.
 os.environ.setdefault("BROKERIQ_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 
-from brokeriq.tools.compliance_rag import compliance_search  # noqa: E402
+from brokeriq.tools.compliance_rag import compliance_search
 
 
 def call_api(prompt: str, options=None, context=None) -> dict:

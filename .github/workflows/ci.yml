@@ -1,0 +1,47 @@
+# BrokerIQ CI — lint, unit tests, offline evals, promptfoo compliance checks.
+#
+# Everything runs without API keys: FakeLLM drives the graph, MiniLM embeds,
+# Qdrant/Redis degrade to in-memory/dummy stores.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    env:
+      BROKERIQ_EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
+      BROKERIQ_QDRANT_URL: http://127.0.0.1:1
+      BROKERIQ_REDIS_URL: redis://127.0.0.1:1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Lint (ruff)
+        run: uv run ruff check src tests evals
+
+      - name: Unit tests
+        run: uv run pytest -q
+
+      - name: Offline evals (deterministic)
+        run: uv run python -m evals.cli --mode offline
+
+      - name: promptfoo compliance checks
+        run: npx --yes promptfoo eval -c promptfoo.yaml
+        env:
+          PROMPTFOO_PYTHON: ${{ github.workspace }}/.venv/bin/python

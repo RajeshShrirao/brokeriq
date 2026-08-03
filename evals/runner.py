@@ -13,9 +13,6 @@ from __future__ import annotations
 
 import json
 import uuid
-from typing import Any
-
-from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from brokeriq import llm as llm_module
 from brokeriq.fake import FakeLLM
@@ -92,5 +89,4 @@ async def run_leads(mode: str = "offline") -> list[dict]:
 
 def write_jsonl(records: list[dict], path: str) -> None:
     with open(path, "w") as fh:
-        for rec in records:
-            fh.write(json.dumps(rec, default=str) + "\n")
+        fh.writelines(json.dumps(rec, default=str) + "\n" for rec in records)
