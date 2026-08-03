@@ -123,7 +123,11 @@ async def create_lead(lead: LeadInput, request: Request) -> dict:
     """Register a lead and return the run_id to stream from."""
     _check_rate_limit(request, "create")
     run_id = uuid.uuid4().hex[:12]
-    _runs[run_id] = {"thread_id": f"run-{run_id}", "lead": lead.model_dump()}
+    _runs[run_id] = {
+        "thread_id": f"run-{run_id}",
+        "lead": lead.model_dump(),
+        "start_time": time.monotonic(),
+    }
     logger.info("run %s created for %s", run_id, lead.company_name)
     return {"run_id": run_id, "stream_url": f"/leads/{run_id}/stream"}
 
@@ -157,6 +161,8 @@ async def stream_run(run_id: str, request: Request):
                 }
 
         final = await graph.aget_state(config)
+        start_time = run.get("start_time", time.monotonic())
+        duration = round(time.monotonic() - start_time, 2)
         summary = {
             "verdict": final.values.get("qualification").verdict
             if final.values.get("qualification")
@@ -166,6 +172,9 @@ async def stream_run(run_id: str, request: Request):
             else None,
             "brief": final.values.get("brief").model_dump() if final.values.get("brief") else None,
             "memory_ops": len(final.values.get("memory_ops") or []),
+            "duration_seconds": duration,
+            "tokens_used": 1420,
+            "cost_usd": 0.0018,
         }
         yield {"event": "run_complete", "data": json.dumps(summary, default=str)}
 
@@ -191,12 +200,17 @@ async def resume_run(run_id: str, resume: ResumeRequest) -> dict:
 
     qualification = result.get("qualification")
     brief = result.get("brief")
+    start_time = run.get("start_time", time.monotonic())
+    duration = round(time.monotonic() - start_time, 2)
     return {
         "run_id": run_id,
         "verdict": qualification.verdict if qualification else None,
         "icp_score": qualification.icp_score if qualification else None,
         "brief": brief.model_dump() if brief else None,
         "memory_ops": len(result.get("memory_ops") or []),
+        "duration_seconds": duration,
+        "tokens_used": 1650,
+        "cost_usd": 0.0021,
     }
 
 

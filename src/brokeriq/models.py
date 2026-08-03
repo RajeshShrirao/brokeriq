@@ -15,6 +15,7 @@ class LeadInput(BaseModel):
     industry: str | None = None
     state: str | None = None
     notes: str = ""
+    model: str | None = None
 
 
 class ResearchReport(BaseModel):

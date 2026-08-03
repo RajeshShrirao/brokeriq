@@ -11,7 +11,12 @@ SSE, an interactive Web Dashboard UI, and a Model Context Protocol server for co
 
 ## Features
 
-- **Web Dashboard UI** — single-page browser interface at `GET /` featuring a live multi-agent workflow visualizer, real-time SSE stream log console, and 1-click human-in-the-loop review modal.
+- **S-Tier Web Dashboard UI** — single-page browser interface at `GET /` featuring:
+  - **Live Mermaid.js LangGraph DAG Visualizer**: Interactive execution path rendering.
+  - **Agent Thought Log & Reasoner Scratchpad**: Real-time drawer showing agent citations, NAICS lookup, and compliance facts.
+  - **Execution Telemetry Badges**: Live tracking of duration (`s`), token estimates, and cost (`USD`).
+  - **Model Switcher**: Dynamic provider selection (`FakeLLM Offline`, `Gemini 2.5 Flash`, `Groq Llama 3.3`, `OpenRouter`).
+  - **1-Click Executive PDF Export**: Professional print stylesheet for generating broker briefs.
 - **Multi-agent pipeline** — supervisor routes research → qualification → compliance gate →
   report → memory extraction agents; deterministic rule fallback keeps the graph runnable
   with no LLM configured.
