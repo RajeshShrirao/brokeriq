@@ -18,8 +18,11 @@ import time
 import uuid
 from collections import defaultdict, deque
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
@@ -54,7 +57,18 @@ def _check_rate_limit(request: Request, bucket: str) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import os
+
     settings = get_settings()
+    if os.getenv("BROKERIQ_OFFLINE") or os.getenv("BROKERIQ_USE_FAKE_LLM") or not (settings.openrouter_api_key or settings.gemini_api_key or settings.groq_api_key):
+        from . import llm as llm_module
+        from .fake import FakeLLM
+
+        fake = FakeLLM()
+        llm_module.complete = fake.complete
+        llm_module.complete_json = fake.complete_json
+        logger.info("brokeriq api using FakeLLM (offline mode)")
+
     if settings.env == "prod":
         from langgraph.checkpoint.postgres import PostgresSaver
         from langgraph.store.postgres import PostgresStore
@@ -80,6 +94,18 @@ app = FastAPI(
     description="Autonomous lead qualification for independent insurance brokers",
     lifespan=lifespan,
 )
+
+static_dir = Path(__file__).parent / "static"
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+
+@app.get("/", include_in_schema=False)
+async def read_root():
+    index_file = static_dir / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file)
+    return {"message": "BrokerIQ API"}
 
 
 class ResumeRequest(BaseModel):

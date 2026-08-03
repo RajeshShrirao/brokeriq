@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BrokerIQ — Autonomous Lead Qualification</title>
+  <style>
+    :root {
+      --bg-color: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #16a34a;
+      --success-bg: #f0fdf4;
+      --warning: #d97706;
+      --warning-bg: #fffbeb;
+      --danger: #dc2626;
+      --danger-bg: #fef2f2;
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      line-height: 1.5;
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 16px;
+    }
+    header h1 { font-size: 1.5rem; font-weight: 700; color: var(--text-main); }
+    header p { color: var(--text-muted); font-size: 0.95rem; }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .card h2 {
+      font-size: 1.1rem;
+      margin-bottom: 16px;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Form Styles */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .form-group input, .form-group select {
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    .form-group input:focus, .form-group select:focus {
+      border-color: var(--primary);
+    }
+
+    .btn {
+      padding: 10px 20px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: var(--primary-hover); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .btn-secondary { background: #64748b; }
+    .btn-secondary:hover { background: #475569; }
+
+    .btn-danger { background: var(--danger); }
+    .btn-danger:hover { background: #b91c1c; }
+
+    .btn-warning { background: var(--warning); }
+    .btn-warning:hover { background: #b45309; }
+
+    /* Pipeline Visualizer */
+    .pipeline {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      padding: 12px 0;
+      overflow-x: auto;
+    }
+
+    .pipeline-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 140px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .step-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #f1f5f9;
+      border: 2px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      transition: all 0.3s;
+    }
+
+    .step-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .step-badge {
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: #e2e8f0;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* Active & State variations */
+    .pipeline-step.active .step-icon {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+    }
+    .pipeline-step.running .step-badge {
+      background: #dbeafe;
+      color: var(--primary);
+    }
+    .pipeline-step.complete .step-badge {
+      background: var(--success-bg);
+      color: var(--success);
+    }
+    .pipeline-step.complete .step-icon {
+      border-color: var(--success);
+    }
+    .pipeline-step.review .step-badge {
+      background: var(--warning-bg);
+      color: var(--warning);
+    }
+    .pipeline-step.review .step-icon {
+      border-color: var(--warning);
+    }
+
+    /* Log Stream */
+    .log-container {
+      background: #0f172a;
+      color: #38bdf8;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.85rem;
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      height: 140px;
+      overflow-y: auto;
+    }
+    .log-entry { margin-bottom: 4px; }
+    .log-entry.event { color: #facc15; }
+    .log-entry.error { color: #f87171; }
+
+    /* Results Card */
+    .results-card { display: none; }
+    .results-card.active { display: block; }
+    .verdict-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .verdict-badge {
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      text-transform: uppercase;
+    }
+    .verdict-badge.qualified { background: var(--success-bg); color: var(--success); border: 1px solid var(--success); }
+    .verdict-badge.disqualified { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger); }
+    .verdict-badge.needs_review { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning); }
+
+    .brief-section { margin-top: 12px; }
+    .brief-section h3 { font-size: 0.95rem; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .brief-section p { font-size: 0.95rem; color: var(--text-main); margin-bottom: 12px; }
+
+    /* Modal Overlay */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 16px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: white;
+      border-radius: var(--radius);
+      max-width: 550px;
+      width: 100%;
+      padding: 24px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--warning);
+      margin-bottom: 16px;
+    }
+    .modal-header h2 { font-size: 1.25rem; color: var(--text-main); }
+    .modal-body { font-size: 0.95rem; display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+    .modal-list { background: var(--bg-color); padding: 12px; border-radius: var(--radius); list-style-position: inside; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>BrokerIQ — Autonomous Lead Qualification</h1>
+      <p>Multi-agent LangGraph workflow for commercial insurance brokers</p>
+    </header>
+
+    <!-- Lead Form -->
+    <div class="card">
+      <h2>📋 Lead Intake</h2>
+      <form id="lead-form" onsubmit="submitLead(event)">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="company_name">Company Name</label>
+            <input type="text" id="company_name" required placeholder="e.g. Acme Widgets">
+          </div>
+          <div class="form-group">
+            <label for="industry">Industry</label>
+            <input type="text" id="industry" placeholder="e.g. manufacturing">
+          </div>
+          <div class="form-group">
+            <label for="state">State (US)</label>
+            <input type="text" id="state" placeholder="e.g. TX" maxlength="2">
+          </div>
+          <div class="form-group">
+            <label for="revenue_band">Revenue Band</label>
+            <select id="revenue_band">
+              <option value="unknown">Unknown</option>
+              <option value="<1M">&lt; $1M</option>
+              <option value="1-5M">$1M - $5M</option>
+              <option value="5-20M">$5M - $20M</option>
+              <option value="20M+">$20M+</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+          <button type="submit" id="submit-btn" class="btn">Qualify Lead</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Multi-Agent Visualizer -->
+    <div class="card">
+      <h2>🤖 Agentic Workflow Execution</h2>
+      <div class="pipeline">
+        <div class="pipeline-step" id="step-input">
+          <div class="step-icon">📥</div>
+          <div class="step-label">Input Lead</div>
+          <div class="step-badge" id="badge-input">⚪ Ready</div>
+        </div>
+        <div class="pipeline-step" id="step-research">
+          <div class="step-icon">🔍</div>
+          <div class="step-label">Research Agent</div>
+          <div class="step-badge" id="badge-research">⚪ Pending</div>
+        </div>
+        <div class="pipeline-step" id="step-qualification">
+          <div class="step-icon">⚖️</div>
+          <div class="step-label">Qualification Agent</div>
+          <div class="step-badge" id="badge-qualification">⚪ Pending</div>
+        </div>
+        <div class="pipeline-step" id="step-gate">
+          <div class="step-icon">🛑</div>
+          <div class="step-label">HITL Compliance Gate</div>
+          <div class="step-badge" id="badge-gate">⚪ Pending</div>
+        </div>
+        <div class="pipeline-step" id="step-report">
+          <div class="step-icon">📝</div>
+          <div class="step-label">Brief Writer</div>
+          <div class="step-badge" id="badge-report">⚪ Pending</div>
+        </div>
+      </div>
+      <div style="margin-top: 16px;">
+        <div class="log-container" id="log-container">
+          <div class="log-entry">System ready. Submit a lead to start pipeline execution.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Final Brief Results -->
+    <div class="card results-card" id="results-card">
+      <div class="verdict-header">
+        <div>
+          <h2 style="margin: 0;" id="results-headline">Qualification Brief</h2>
+          <span id="results-sub" style="color: var(--text-muted); font-size: 0.9rem;"></span>
+        </div>
+        <div class="verdict-badge" id="verdict-badge">Qualified</div>
+      </div>
+
+      <div class="brief-section">
+        <h3>Summary</h3>
+        <p id="brief-summary"></p>
+      </div>
+
+      <div class="brief-section">
+        <h3>Recommended Outreach Angle</h3>
+        <p id="brief-outreach"></p>
+      </div>
+
+      <div class="brief-section">
+        <h3>Action Item</h3>
+        <p id="brief-action"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- HITL Review Modal -->
+  <div class="modal-overlay" id="hitl-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <span style="font-size: 1.5rem;">⚠️</span>
+        <h2>Human Review Required</h2>
+      </div>
+      <div class="modal-body">
+        <p><strong id="modal-company"></strong> requires human review before proceeding to report generation.</p>
+        <div>
+          <strong>Reason / Question:</strong>
+          <p id="modal-question" style="color: var(--text-muted); margin-top: 4px;"></p>
+        </div>
+        <div>
+          <strong>Initial Verdict & ICP Score:</strong>
+          <span id="modal-verdict-score" style="font-weight: 600;"></span>
+        </div>
+        <div>
+          <strong>Risk Flags:</strong>
+          <ul class="modal-list" id="modal-flags"></ul>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="handleResume('adjust')">Adjust Score</button>
+        <button class="btn btn-danger" onclick="handleResume('disqualify')">Disqualify</button>
+        <button class="btn btn-warning" onclick="handleResume('approve')">Approve Lead</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentRunId = null;
+    let eventSource = null;
+
+    function log(msg, type = 'info') {
+      const container = document.getElementById('log-container');
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      container.appendChild(entry);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function setStepState(stepId, state, text) {
+      const el = document.getElementById(`step-${stepId}`);
+      const badge = document.getElementById(`badge-${stepId}`);
+      if (!el || !badge) return;
+
+      el.className = `pipeline-step ${state}`;
+      badge.textContent = text;
+    }
+
+    function resetPipeline() {
+      ['input', 'research', 'qualification', 'gate', 'report'].forEach(step => {
+        setStepState(step, '', '⚪ Pending');
+      });
+      document.getElementById('badge-input').textContent = '⚪ Ready';
+      document.getElementById('results-card').classList.remove('active');
+    }
+
+    async function submitLead(e) {
+      e.preventDefault();
+      resetPipeline();
+      const submitBtn = document.getElementById('submit-btn');
+      submitBtn.disabled = true;
+
+      const lead = {
+        company_name: document.getElementById('company_name').value.trim(),
+        industry: document.getElementById('industry').value.trim() || undefined,
+        state: document.getElementById('state').value.trim() || undefined,
+        revenue_band: document.getElementById('revenue_band').value
+      };
+
+      setStepState('input', 'complete', '🟢 Submitted');
+      log(`Registering lead for "${lead.company_name}"...`);
+
+      try {
+        const res = await fetch('/leads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(lead)
+        });
+
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        const data = await res.json();
+        currentRunId = data.run_id;
+        log(`Run started with ID: ${currentRunId}`, 'event');
+
+        startStream(currentRunId);
+      } catch (err) {
+        log(`Failed to create lead: ${err.message}`, 'error');
+        submitBtn.disabled = false;
+      }
+    }
+
+    function startStream(runId) {
+      if (eventSource) eventSource.close();
+      eventSource = new EventSource(`/leads/${runId}/stream`);
+
+      eventSource.addEventListener('run_started', (e) => {
+        log(`Pipeline stream connected (run_id: ${runId})`, 'event');
+      });
+
+      eventSource.addEventListener('node', (e) => {
+        const data = JSON.parse(e.data);
+        const node = data.node;
+        log(`Agent Node: ${node} -> ${JSON.stringify(data.next_stage || data.messages || 'executed')}`);
+
+        if (node === 'supervisor') {
+          if (data.next_stage === 'research') setStepState('research', 'running active', '🟢 Running');
+          if (data.next_stage === 'qualification') setStepState('qualification', 'running active', '🟢 Scoring');
+          if (data.next_stage === 'report') setStepState('report', 'running active', '🟢 Writing');
+        } else if (node === 'research') {
+          setStepState('research', 'complete', '🟢 Complete');
+        } else if (node === 'qualification') {
+          setStepState('qualification', 'complete', '🟢 Scored');
+        } else if (node === 'gate') {
+          setStepState('gate', 'complete', '🟢 Passed');
+        } else if (node === 'report') {
+          setStepState('report', 'complete', '🟢 Done');
+        }
+      });
+
+      eventSource.addEventListener('review_required', (e) => {
+        const payload = JSON.parse(e.data);
+        log(`Human Review Required for ${payload.company}!`, 'event');
+        setStepState('gate', 'review active', '🟡 Review Required');
+        showHitlModal(payload);
+        eventSource.close();
+      });
+
+      eventSource.addEventListener('run_complete', (e) => {
+        const data = JSON.parse(e.data);
+        log(`Run Complete! Final Verdict: ${data.verdict}`, 'event');
+        renderResults(data);
+        document.getElementById('submit-btn').disabled = false;
+        eventSource.close();
+      });
+
+      eventSource.onerror = (err) => {
+        log(`SSE Stream disconnected`, 'error');
+        eventSource.close();
+        document.getElementById('submit-btn').disabled = false;
+      };
+    }
+
+    function showHitlModal(payload) {
+      document.getElementById('modal-company').textContent = payload.company;
+      document.getElementById('modal-question').textContent = payload.question || 'Approve, adjust score, or disqualify this lead?';
+      document.getElementById('modal-verdict-score').textContent = `${payload.verdict ? payload.verdict.toUpperCase() : 'REVIEW'} (ICP Score: ${payload.icp_score}/100)`;
+
+      const flagsList = document.getElementById('modal-flags');
+      flagsList.innerHTML = '';
+      (payload.risk_flags || ['No explicit risk flags noted']).forEach(flag => {
+        const li = document.createElement('li');
+        li.textContent = flag;
+        flagsList.appendChild(li);
+      });
+
+      document.getElementById('hitl-modal').classList.add('active');
+    }
+
+    async function handleResume(action) {
+      let score = undefined;
+      if (action === 'adjust') {
+        const input = prompt('Enter adjusted ICP score (0 - 100):', '75');
+        if (input === null) return;
+        score = parseFloat(input);
+        if (isNaN(score) || score < 0 || score > 100) {
+          alert('Invalid score! Please enter a number between 0 and 100.');
+          return;
+        }
+      }
+
+      document.getElementById('hitl-modal').classList.remove('active');
+      log(`Submitting human decision: ${action}${score !== undefined ? ' (score: ' + score + ')' : ''}...`, 'event');
+
+      try {
+        const res = await fetch(`/leads/${currentRunId}/resume`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: action, icp_score: score })
+        });
+
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        const data = await res.json();
+        log(`Resume accepted. Final Verdict: ${data.verdict}`, 'event');
+        setStepState('gate', 'complete', '🟢 Resolved');
+
+        renderResults(data);
+      } catch (err) {
+        log(`Failed to submit human review decision: ${err.message}`, 'error');
+      } finally {
+        document.getElementById('submit-btn').disabled = false;
+      }
+    }
+
+    function renderResults(data) {
+      const card = document.getElementById('results-card');
+      const badge = document.getElementById('verdict-badge');
+
+      badge.textContent = data.verdict || 'N/A';
+      badge.className = `verdict-badge ${data.verdict || ''}`;
+
+      document.getElementById('results-sub').textContent = `ICP Score: ${data.icp_score ?? 'N/A'}/100 | Memory Operations: ${data.memory_ops || 0}`;
+
+      if (data.brief) {
+        document.getElementById('results-headline').textContent = data.brief.headline || 'Qualification Brief';
+        document.getElementById('brief-summary').textContent = data.brief.summary || 'N/A';
+        document.getElementById('brief-outreach').textContent = data.brief.outreach_angle || 'N/A';
+        document.getElementById('brief-action').textContent = data.brief.recommended_action || 'N/A';
+      } else {
+        document.getElementById('results-headline').textContent = 'Lead Disqualified';
+        document.getElementById('brief-summary').textContent = 'This lead was disqualified during qualification or human review. No brief was generated.';
+        document.getElementById('brief-outreach').textContent = 'N/A';
+        document.getElementById('brief-action').textContent = 'Archive or review disqualification reason.';
+      }
+
+      card.classList.add('active');
+    }
+  </script>
+</body>
+</html>
