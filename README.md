@@ -7,10 +7,11 @@ against an ideal customer profile, checks carrier and state-regulatory fit, and 
 ready-to-use lead brief with a recommended outreach angle — in minutes instead of hours.
 
 Built on a LangGraph agent pipeline with hybrid RAG, human-in-the-loop review, streaming
-SSE, and a Model Context Protocol server for compliance search.
+SSE, an interactive Web Dashboard UI, and a Model Context Protocol server for compliance search.
 
 ## Features
 
+- **Web Dashboard UI** — single-page browser interface at `GET /` featuring a live multi-agent workflow visualizer, real-time SSE stream log console, and 1-click human-in-the-loop review modal.
 - **Multi-agent pipeline** — supervisor routes research → qualification → compliance gate →
   report → memory extraction agents; deterministic rule fallback keeps the graph runnable
   with no LLM configured.
@@ -45,6 +46,24 @@ uv run ruff check src tests evals
 uv run pytest -q
 ```
 
+### Web Dashboard & HTTP API
+
+Start the local API server (works offline with zero keys):
+
+```bash
+BROKERIQ_OFFLINE=1 uv run uvicorn brokeriq.api:app --reload --port 8000
+```
+
+- Open **`http://localhost:8000`** in your browser for the interactive Web Dashboard UI (live agent graph visualizer, SSE log stream, and 1-click HITL decision modal).
+- REST endpoint for programmatic access:
+  ```bash
+  curl -X POST localhost:8000/leads \
+    -H 'content-type: application/json' \
+    -d '{"company_name":"Acme Widgets","state":"TX","revenue_band":"5-20M"}'
+  ```
+
+See [docs/api.md](docs/api.md) for the full contract (SSE events, resume actions, limits).
+
 ### Live run (needs an LLM key)
 
 Set one of `OPENROUTER_API_KEY`, `GEMINI_API_KEY`, or `GROQ_API_KEY` in `.env`, then:
@@ -52,17 +71,6 @@ Set one of `OPENROUTER_API_KEY`, `GEMINI_API_KEY`, or `GROQ_API_KEY` in `.env`, 
 ```bash
 uv run brokeriq "Nimbus Cyber Solutions" --domain nimbuscyber.io --industry cybersecurity --state CA
 ```
-
-### HTTP API
-
-```bash
-uvicorn brokeriq.api:app --reload --port 8000
-curl -X POST localhost:8000/leads \
-  -H 'content-type: application/json' \
-  -d '{"company_name":"Acme Widgets","state":"TX","revenue_band":"5-20M"}'
-```
-
-See [docs/api.md](docs/api.md) for the full contract (SSE events, resume actions, limits).
 
 ### MCP server
 
@@ -107,8 +115,9 @@ src/brokeriq/
   agents/          supervisor, research, qualification, gate, report, memory
   rag/             embeddings, hybrid store, rerank, cross-encoder, ingest
   tools/           web_search, naics_lookup, compliance_rag
+  static/          Web Dashboard UI (index.html)
   graph.py         state graph assembly + routing
-  api.py           FastAPI SSE + HITL resume
+  api.py           FastAPI SSE + Web UI mounting + HITL resume
   mcp_server.py    MCP 2.0 stdio server (compliance_search)
   fake.py          FakeLLM for offline runs/tests
 evals/             dataset, runner, judge, CLI, promptfoo provider
