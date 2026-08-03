@@ -6,10 +6,10 @@ import sys
 from .config import get_settings
 
 
-def setup_logging() -> None:
+def setup_logging(stream=None) -> None:
     settings = get_settings()
     level = getattr(logging, settings.log_level.upper(), logging.INFO)
-    handler = logging.StreamHandler(sys.stdout)
+    handler = logging.StreamHandler(stream or sys.stdout)
     handler.setFormatter(
         logging.Formatter("%(asctime)s %(levelname)-8s %(name)s | %(message)s", datefmt="%H:%M:%S")
     )
