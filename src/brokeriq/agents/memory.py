@@ -9,7 +9,7 @@ import logging
 
 from langgraph.config import get_store
 
-from ..llm import complete_json
+from .. import llm
 from ..models import MemoryOp
 from . import prompts
 
@@ -23,7 +23,7 @@ async def memory_node(state: dict) -> dict:
     brief = state.get("brief")
     logger.info("memory extraction: %s", lead.company_name)
 
-    raw = await complete_json(
+    raw = await llm.complete_json(
         [
             {"role": "system", "content": prompts.MEMORY},
             {

@@ -3,7 +3,7 @@ deterministic fallback so the graph still works offline / in tests."""
 
 import logging
 
-from ..llm import complete_json
+from .. import llm
 from . import prompts
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ async def supervisor_node(state: dict) -> dict:
     )
 
     try:
-        raw = await complete_json(
+        raw = await llm.complete_json(
             [
                 {"role": "system", "content": prompts.SUPERVISOR},
                 {"role": "user", "content": f"State summary:\n{state_summary}"},

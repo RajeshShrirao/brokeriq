@@ -2,7 +2,7 @@
 
 import logging
 
-from ..llm import complete_json
+from .. import llm
 from ..models import LeadBrief
 from . import prompts
 
@@ -15,7 +15,7 @@ async def report_node(state: dict) -> dict:
     qualification = state.get("qualification")
     logger.info("report: %s", lead.company_name)
 
-    raw = await complete_json(
+    raw = await llm.complete_json(
         [
             {"role": "system", "content": prompts.REPORT},
             {

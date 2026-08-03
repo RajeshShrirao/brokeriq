@@ -2,7 +2,7 @@
 
 import logging
 
-from ..llm import complete_json
+from .. import llm
 from ..models import ResearchReport
 from ..tools import lookup_naics, web_search
 from . import prompts
@@ -23,7 +23,7 @@ async def research_node(state: dict) -> dict:
     )
     naics_text = f"{naics['code']} {naics['label']}" if naics else "none found"
 
-    raw = await complete_json(
+    raw = await llm.complete_json(
         [
             {"role": "system", "content": prompts.RESEARCH},
             {

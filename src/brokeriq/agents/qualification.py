@@ -2,7 +2,7 @@
 
 import logging
 
-from ..llm import complete_json
+from .. import llm
 from ..models import QualificationResult
 from ..tools import compliance_search
 from . import prompts
@@ -31,7 +31,7 @@ async def qualification_node(state: dict) -> dict:
     if fact_text:
         context_lines.append(f"Compliance corpus facts:\n{fact_text}")
 
-    raw = await complete_json(
+    raw = await llm.complete_json(
         [
             {"role": "system", "content": prompts.QUALIFICATION},
             {
