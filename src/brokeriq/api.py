@@ -70,12 +70,12 @@ async def lifespan(app: FastAPI):
         logger.info("brokeriq api using FakeLLM (offline mode)")
 
     if settings.env == "prod":
-        from langgraph.checkpoint.postgres import PostgresSaver
-        from langgraph.store.postgres import PostgresStore
+        from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+        from langgraph.store.postgres.aio import AsyncPostgresStore
 
-        with PostgresSaver.from_conn_string(settings.postgres_dsn) as checkpointer:
-            checkpointer.setup()
-            with PostgresStore.from_conn_string(settings.postgres_dsn) as store:
+        async with AsyncPostgresSaver.from_conn_string(settings.postgres_dsn) as checkpointer:
+            await checkpointer.setup()
+            async with AsyncPostgresStore.from_conn_string(settings.postgres_dsn) as store:
                 app.state.graph = build_graph(checkpointer=checkpointer, store=store)
                 logger.info("brokeriq api ready (prod: postgres)")
                 yield
