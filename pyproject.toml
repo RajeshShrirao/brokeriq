@@ -43,6 +43,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/brokeriq"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"src/brokeriq/data/naics.csv" = "brokeriq/data/naics.csv"
+
 [tool.ruff]
 line-length = 110
 

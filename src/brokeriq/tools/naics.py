@@ -7,20 +7,20 @@ focused on the industries commercial insurance brokers actually see.
 import csv
 import logging
 from functools import lru_cache
-from pathlib import Path
+from importlib import resources
 
 logger = logging.getLogger(__name__)
 
-_DATASET_PATH = Path(__file__).resolve().parents[3] / "data" / "naics.csv"
+_DATASET_NAME = "naics.csv"
 
 
 @lru_cache(maxsize=1)
 def _load_codes() -> list[dict]:
     rows: list[dict] = []
-    with open(_DATASET_PATH, newline="", encoding="utf-8") as fh:
+    with resources.files("brokeriq.data").joinpath(_DATASET_NAME).open("r", newline="", encoding="utf-8") as fh:
         for row in csv.DictReader(fh):
             rows.append({"code": row["code"], "label": row["label"], "keywords": row["keywords"]})
-    logger.info("loaded %d naics codes from %s", len(rows), _DATASET_PATH.name)
+    logger.info("loaded %d naics codes from %s", len(rows), _DATASET_NAME)
     return rows
 
 
