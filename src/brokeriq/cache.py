@@ -9,9 +9,11 @@ Degraded mode: if Redis is unreachable the cache silently becomes a no-op so
 the pipeline keeps working — the cache is an accelerator, never a dependency.
 """
 
+import asyncio
 import hashlib
 import json
 import logging
+from collections import deque
 
 import numpy as np
 from redis.asyncio import Redis
@@ -32,7 +34,8 @@ class SemanticCache:
         self.ttl = ttl
         self.threshold = threshold
         self._fingerprints: dict[str, list[float]] = {}
-        self._order: list[str] = []
+        self._order: deque[str] = deque()
+        self._lock = asyncio.Lock()
 
     @classmethod
     def from_settings(cls) -> "SemanticCache":
@@ -76,13 +79,12 @@ class SemanticCache:
         except RedisError as exc:
             logger.debug("cache write skipped: %s", exc)
 
-        # fingerprint ring is maintained locally so semantic hits work
-        # even if a single write/read fails
-        self._fingerprints[key] = embedding
-        self._order.append(key)
-        if len(self._order) > _SEMANTIC_INDEX_MAX:
-            dropped = self._order.pop(0)
-            self._fingerprints.pop(dropped, None)
+        async with self._lock:
+            self._fingerprints[key] = embedding
+            self._order.append(key)
+            if len(self._order) > _SEMANTIC_INDEX_MAX:
+                dropped = self._order.popleft()
+                self._fingerprints.pop(dropped, None)
 
     async def _exact_get(self, query: str) -> list[dict] | None:
         return await self._get_by_key(self._key(query))
