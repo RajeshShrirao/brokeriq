@@ -41,7 +41,7 @@ async def compliance_search(query: str, limit: int = 5) -> list[dict]:
 
     dense = (await embed_texts([query]))[0]
 
-    cache = get_cache()
+    cache = await get_cache()
     cached = await cache.get(query, dense)
     if cached is not None:
         logger.info("compliance search %r served from cache", query)

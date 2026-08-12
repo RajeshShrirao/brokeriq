@@ -7,6 +7,10 @@ returns the stored payload without touching the vector store.
 
 Degraded mode: if Redis is unreachable the cache silently becomes a no-op so
 the pipeline keeps working — the cache is an accelerator, never a dependency.
+
+The semantic tier keeps a bounded in-memory fingerprint ring (max 1024 entries).
+When the ring is full, the oldest entry is evicted (FIFO) on each new put — no
+LRU, no background cleanup, constant-time ops.
 """
 
 import asyncio
@@ -38,14 +42,16 @@ class SemanticCache:
         self._lock = asyncio.Lock()
 
     @classmethod
-    def from_settings(cls) -> "SemanticCache":
+    async def from_settings(cls) -> "SemanticCache":
         settings = get_settings()
         redis = None
         try:
             redis = Redis.from_url(settings.redis_url, socket_connect_timeout=1, decode_responses=True)
+            await redis.ping()
             logger.info("semantic cache connected to %s", settings.redis_url)
         except Exception:
             logger.warning("redis unavailable; semantic cache running in degraded (no-op) mode")
+            redis = None
         return cls(redis=redis, ttl=settings.cache_ttl, threshold=settings.cache_similarity_threshold)
 
     async def get(self, query: str, embedding: list[float]) -> list[dict] | None:
@@ -105,10 +111,10 @@ class SemanticCache:
         return "bq:cache:" + hashlib.sha256(query.strip().lower().encode()).hexdigest()
 
 
-def get_cache() -> SemanticCache:
+async def get_cache() -> SemanticCache:
     global _cache
     if _cache is None:
-        _cache = SemanticCache.from_settings()
+        _cache = await SemanticCache.from_settings()
     return _cache
 
 
