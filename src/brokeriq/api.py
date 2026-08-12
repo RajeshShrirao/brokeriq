@@ -177,13 +177,19 @@ async def stream_run(run_id: str, request: Request):
         final = await graph.aget_state(config)
         start_time = run.get("start_time", time.monotonic())
         duration = round(time.monotonic() - start_time, 2)
+        qual = final.values.get("qualification")
+        if isinstance(qual, dict):
+            verdict = qual.get("verdict")
+            icp_score = qual.get("icp_score")
+        elif qual is not None:
+            verdict = qual.verdict
+            icp_score = qual.icp_score
+        else:
+            verdict = None
+            icp_score = None
         summary = {
-            "verdict": final.values.get("qualification").verdict
-            if final.values.get("qualification")
-            else None,
-            "icp_score": final.values.get("qualification").icp_score
-            if final.values.get("qualification")
-            else None,
+            "verdict": verdict,
+            "icp_score": icp_score,
             "brief": final.values.get("brief").model_dump() if final.values.get("brief") else None,
             "memory_ops": len(final.values.get("memory_ops") or []),
             "duration_seconds": duration,
