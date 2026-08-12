@@ -12,7 +12,7 @@ from ..rag.rerank import rerank
 logger = logging.getLogger(__name__)
 
 
-def ensure_indexed() -> None:
+async def ensure_indexed() -> None:
     """Idempotent one-shot index of the sample corpus into the local store."""
     settings = get_settings()
     client = build_client()
@@ -25,8 +25,8 @@ def ensure_indexed() -> None:
 
     chunks = load_corpus(corpus_dir)
     texts = [c.text for c in chunks]
-    dense = embed_texts(texts)
-    sparse = embed_sparse(texts)
+    dense = await embed_texts(texts)
+    sparse = await embed_sparse(texts)
     upsert_chunks(client, chunks, dense, sparse)
 
 
@@ -36,10 +36,10 @@ async def compliance_search(query: str, limit: int = 5) -> list[dict]:
     Results are served from the two-tier semantic cache when possible, so
     repeat and near-duplicate queries skip embedding + vector search entirely.
     """
-    ensure_indexed()
+    await ensure_indexed()
     client = build_client()
 
-    dense = embed_texts([query])[0]
+    dense = (await embed_texts([query]))[0]
 
     cache = get_cache()
     cached = await cache.get(query, dense)
@@ -47,7 +47,7 @@ async def compliance_search(query: str, limit: int = 5) -> list[dict]:
         logger.info("compliance search %r served from cache", query)
         return cached[:limit]
 
-    sparse = embed_sparse([query])[0]
+    sparse = (await embed_sparse([query]))[0]
     hits = hybrid_search(client, dense, sparse, query, limit=limit * 3)
     hits = rerank(hits, query, top_k=limit)
 

@@ -28,17 +28,29 @@ def _sparse_embedder():
     return SparseTextEmbedding(model_name="Qdrant/bm42-all-minilm-l6-v2-attentions")
 
 
-def embed_texts(texts: list[str]) -> list[list[float]]:
-    """Dense embeddings (batched)."""
+async def embed_texts(texts: list[str]) -> list[list[float]]:
+    """Dense embeddings (batched). Offloaded to thread to avoid blocking the event loop."""
+    import asyncio
+
     embedder = _text_embedder()
-    return [list(vec) for vec in embedder.embed(texts)]
+
+    def _run() -> list[list[float]]:
+        return [list(vec) for vec in embedder.embed(texts)]
+
+    return await asyncio.to_thread(_run)
 
 
-def embed_sparse(texts: list[str]) -> list[models.SparseVector]:
-    """BM42 sparse vectors for hybrid retrieval."""
+async def embed_sparse(texts: list[str]) -> list[models.SparseVector]:
+    """BM42 sparse vectors for hybrid retrieval. Offloaded to thread to avoid blocking the event loop."""
+    import asyncio
+
     embedder = _sparse_embedder()
-    out = []
-    for vec in embedder.embed(texts):
-        indices, values = vec.indices, vec.values
-        out.append(models.SparseVector(indices=list(indices), values=[float(v) for v in values]))
-    return out
+
+    def _run() -> list[models.SparseVector]:
+        out = []
+        for vec in embedder.embed(texts):
+            indices, values = vec.indices, vec.values
+            out.append(models.SparseVector(indices=list(indices), values=[float(v) for v in values]))
+        return out
+
+    return await asyncio.to_thread(_run)

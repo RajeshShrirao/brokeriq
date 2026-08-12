@@ -1,7 +1,10 @@
 """RAG tests run against an in-memory Qdrant with the MiniLM embedding model,
 so the suite stays fast and needs no API keys or docker."""
 
+import asyncio
+
 import pytest
+from qdrant_client import models
 
 from brokeriq.rag import build_client, hybrid_search, load_corpus, split_markdown, upsert_chunks
 from brokeriq.rag.embeddings import embed_sparse, embed_texts
@@ -33,6 +36,15 @@ def _sample_chunks() -> list[Chunk]:
     ]
 
 
+def _embed_sync(texts: list[str]) -> tuple[list[list[float]], list[models.SparseVector]]:
+    """Run async embed helpers from a sync test context."""
+
+    async def _run():
+        return await asyncio.gather(embed_texts(texts), embed_sparse(texts))
+
+    return asyncio.run(_run())
+
+
 def test_split_markdown_respects_sections():
     doc = "# Title\n\n## Part One\n\nHello world.\n\n## Part Two\n\nSecond part.\n"
     chunks = split_markdown(doc, "test")
@@ -51,9 +63,11 @@ def test_hybrid_search_roundtrip():
     client = build_client(prefer_memory=True)
     chunks = _sample_chunks()
     texts = [c.text for c in chunks]
-    upsert_chunks(client, chunks, embed_texts(texts), embed_sparse(texts))
+    dense, sparse = _embed_sync(texts)
+    upsert_chunks(client, chunks, dense, sparse)
 
-    hits = hybrid_search(client, embed_texts(["do carriers require mfa"])[0], embed_sparse(["do carriers require mfa"])[0], "mfa requirement", limit=2)
+    single_dense, single_sparse = _embed_sync(["do carriers require mfa"])
+    hits = hybrid_search(client, single_dense[0], single_sparse[0], "mfa requirement", limit=2)
     assert len(hits) >= 1
     assert hits[0]["citation"].startswith("cyber §")
 
@@ -61,6 +75,7 @@ def test_hybrid_search_roundtrip():
 def test_upsert_is_idempotent():
     client = build_client(prefer_memory=True)
     chunks = _sample_chunks()
-    upsert_chunks(client, chunks, embed_texts([c.text for c in chunks]), embed_sparse([c.text for c in chunks]))
+    dense, sparse = _embed_sync([c.text for c in chunks])
+    upsert_chunks(client, chunks, dense, sparse)
     count = client.count("compliance").count
     assert count == len(chunks)
