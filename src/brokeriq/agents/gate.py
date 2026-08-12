@@ -41,7 +41,10 @@ def compliance_gate_node(state: dict) -> dict:
     # Pauses execution; a human resumes via Command(resume=...)
     decision = interrupt(payload)
 
-    action = (decision or {}).get("action", "approve")
+    if isinstance(decision, dict):
+        action = decision.get("action", "approve")
+    else:
+        action = "approve"
     if action == "disqualify":
         adjusted = qual.model_copy(update={"verdict": "disqualified"})
         logger.info("human disqualified %s", state["lead"].company_name)
