@@ -48,6 +48,7 @@ async def research_node(state: dict) -> dict:
 
     return {
         "research": report,
+        "completed_stages": {"research"},
         "messages": [
             {
                 "role": "assistant",

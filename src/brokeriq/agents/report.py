@@ -36,5 +36,6 @@ async def report_node(state: dict) -> dict:
     brief = LeadBrief.model_validate(raw)
     return {
         "brief": brief,
+        "completed_stages": {"report"},
         "messages": [{"role": "assistant", "content": f"Brief ready: {brief.headline}"}],
     }

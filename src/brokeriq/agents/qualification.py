@@ -51,6 +51,7 @@ async def qualification_node(state: dict) -> dict:
     logger.info("qualification verdict=%s score=%s", result.verdict, result.icp_score)
     return {
         "qualification": result,
+        "completed_stages": {"qualification"},
         "messages": [
             {
                 "role": "assistant",

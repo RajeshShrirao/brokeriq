@@ -77,3 +77,4 @@ class AgentState(TypedDict, total=False):
     skip_report: bool
     messages: Annotated[list, add_messages]
     run_id: str
+    completed_stages: set[str]

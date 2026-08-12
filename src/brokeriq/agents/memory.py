@@ -43,8 +43,7 @@ async def memory_node(state: dict) -> dict:
     ops = [MemoryOp.model_validate(op) for op in raw.get("ops", [])]
     applied = await _apply_ops(ops)
     logger.info("memory ops: %d extracted, %d applied", len(ops), len(applied))
-    return {"memory_ops": ops}
-
+    return {"memory_ops": ops, "completed_stages": {"memory"}}
 
 async def _apply_ops(ops: list[MemoryOp]) -> list[MemoryOp]:
     """Persist non-NOOP ops to the graph's store; skip cleanly if no store."""
