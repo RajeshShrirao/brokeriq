@@ -1,6 +1,9 @@
 """Web search with a zero-key default (DuckDuckGo) and optional Tavily."""
 
+import asyncio
 import logging
+
+from ddgs import DDGS
 
 from ..config import get_settings
 
@@ -22,9 +25,6 @@ async def web_search(query: str, max_results: int = 5) -> list[dict]:
 async def _ddgs_search(query: str, max_results: int) -> list[dict]:
     # ddgs is synchronous under the hood; run it in a thread so we don't block
     # the event loop during a graph run.
-    import asyncio
-
-    from ddgs import DDGS
 
     def _run() -> list[dict]:
         try:
