@@ -73,6 +73,20 @@ async def lifespan(app: FastAPI):
         from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
         from langgraph.store.postgres.aio import AsyncPostgresStore
 
+        # Validate Redis before accepting prod traffic — fail fast rather than
+        # deferring the first connectivity error to the first cache lookup.
+        from .cache import get_cache
+
+        try:
+            cache = await get_cache()
+            if cache._redis is not None:
+                await cache._redis.ping()
+            else:
+                raise RuntimeError("redis unreachable at startup")
+        except Exception as exc:
+            logger.error("redis connectivity check failed at startup: %s", exc)
+            raise RuntimeError("redis unreachable — refusing to start") from exc
+
         async with AsyncPostgresSaver.from_conn_string(settings.postgres_dsn) as checkpointer:
             await checkpointer.setup()
             async with AsyncPostgresStore.from_conn_string(settings.postgres_dsn) as store:
