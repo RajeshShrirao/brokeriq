@@ -36,16 +36,16 @@ def _parse_args() -> argparse.Namespace:
 async def _run(args: argparse.Namespace) -> dict:
     from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
-    from . import llm as llm_module
+    from .fake import FakeLLM
     from .graph import build_graph
+    from .llm import LLM
     from .store import memory_store_scope
 
-    if args.offline:
-        from .fake import FakeLLM
+    _llm = LLM(strategy=FakeLLM()) if args.offline else LLM()
 
-        fake = FakeLLM()
-        llm_module.complete = fake.complete
-        llm_module.complete_json = fake.complete_json
+    from . import llm as llm_module
+
+    llm_module.llm = _llm
 
     lead = LeadInput(
         company_name=args.company,
@@ -60,6 +60,7 @@ async def _run(args: argparse.Namespace) -> dict:
     async with AsyncSqliteSaver.from_conn_string(args.db) as checkpointer, memory_store_scope() as store:
         app = build_graph(checkpointer=checkpointer, store=store)
         return await app.ainvoke({"lead": lead, "run_id": run_id}, config=config)
+
 
 def main() -> None:
     args = _parse_args()

@@ -1,16 +1,4 @@
-"""FastAPI application exposing the qualification pipeline.
-
-Endpoints:
-    POST /leads                     -> start a run, returns run_id
-    GET  /leads/{run_id}/stream     -> SSE stream of pipeline progress
-    POST /leads/{run_id}/resume     -> human-in-the-loop decision (approve/adjust/disqualify)
-    GET  /leads/{run_id}            -> final state of a completed run
-    GET  /healthz                   -> liveness probe
-
-Runs are persisted via the graph checkpointer (sqlite in dev, postgres in
-prod), so a stream that pauses at the compliance gate can be resumed later
-from any process with the same run_id.
-"""
+"""FastAPI application exposing the qualification pipeline."""
 
 import json
 import logging
@@ -35,33 +23,19 @@ from .store import memory_store_scope
 
 logger = logging.getLogger(__name__)
 
-# In-process registry of active runs: run_id -> {"thread_id", "lead"}
-# Single-instance only; swap for redis/postgres when scaling out.
 _runs: dict[str, dict] = {}
-
-# Minimal in-process rate limiting (per-IP sliding window).
 _rate_windows: dict[str, deque] = defaultdict(deque)
-RATE_LIMIT = {"create": (30, 60.0), "stream": (120, 60.0)}  # (max_requests, window_seconds)
+RATE_LIMIT = {"create": (30, 60.0), "stream": (120, 60.0)}
 
 
 def _client_ip(request: Request) -> str:
-    """Resolve the real client IP behind a reverse proxy.
-
-    Parses X-Forwarded-For / CF-Connecting-IP with strict validation so that
-    a shared proxy does not cause all users to share one rate-limit key.
-    """
-    proxy = request.headers.get("X-Forwarded-For") or request.headers.get(
-        "CF-Connecting-IP"
-    )
+    proxy = request.headers.get("X-Forwarded-For") or request.headers.get("CF-Connecting-IP")
     if proxy:
-        # X-Forwarded-For may carry a chain; take the leftmost (client) entry.
         candidate = proxy.split(",")[0].strip()
         if re.fullmatch(r"[0-9a-fA-F:]+", candidate):
             return candidate
-    if request.client:
-        host = request.client.host
-        if re.fullmatch(r"[0-9a-fA-F:]+", host):
-            return host
+    if request.client and re.fullmatch(r"[0-9a-fA-F:]+", request.client.host):
+        return request.client.host
     return "unknown"
 
 
@@ -82,21 +56,22 @@ async def lifespan(app: FastAPI):
     import os
 
     settings = get_settings()
-    if os.getenv("BROKERIQ_OFFLINE") or os.getenv("BROKERIQ_USE_FAKE_LLM") or not (settings.openrouter_api_key or settings.gemini_api_key or settings.groq_api_key):
-        from . import llm as llm_module
+    if os.getenv("BROKERIQ_OFFLINE") or os.getenv("BROKERIQ_USE_FAKE_LLM") or not (
+        settings.openrouter_api_key or settings.gemini_api_key or settings.groq_api_key
+    ):
         from .fake import FakeLLM
+        from .llm import LLM
 
-        fake = FakeLLM()
-        llm_module.complete = fake.complete
-        llm_module.complete_json = fake.complete_json
+        _llm = LLM(strategy=FakeLLM())
         logger.info("brokeriq api using FakeLLM (offline mode)")
+    from . import llm as llm_module
+
+    llm_module.llm = _llm
 
     if settings.env == "prod":
         from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
         from langgraph.store.postgres.aio import AsyncPostgresStore
 
-        # Validate Redis before accepting prod traffic — fail fast rather than
-        # deferring the first connectivity error to the first cache lookup.
         from .cache import get_cache
 
         try:
@@ -156,7 +131,6 @@ async def healthz() -> dict:
 
 @app.post("/leads")
 async def create_lead(lead: LeadInput, request: Request) -> dict:
-    """Register a lead and return the run_id to stream from."""
     _check_rate_limit(request, "create")
     run_id = uuid.uuid4().hex[:12]
     _runs[run_id] = {
@@ -170,7 +144,6 @@ async def create_lead(lead: LeadInput, request: Request) -> dict:
 
 @app.get("/leads/{run_id}/stream")
 async def stream_run(run_id: str, request: Request):
-    """Server-sent events: run_started, node, review_required, run_complete."""
     _check_rate_limit(request, "stream")
     run = _runs.get(run_id)
     if not run:
@@ -190,7 +163,7 @@ async def stream_run(run_id: str, request: Request):
                     interrupt_value = payload[0] if isinstance(payload, tuple) else payload
                     logger.info("run %s paused at compliance gate", run_id)
                     yield {"event": "review_required", "data": json.dumps(interrupt_value, default=str)}
-                    return  # stream ends; client resumes via POST /resume
+                    return
                 yield {
                     "event": "node",
                     "data": json.dumps({"node": node_name, **(payload or {})}, default=str),
@@ -227,7 +200,6 @@ async def stream_run(run_id: str, request: Request):
 
 @app.post("/leads/{run_id}/resume")
 async def resume_run(run_id: str, resume: ResumeRequest) -> dict:
-    """Resume a paused run with a human decision from the compliance gate."""
     run = _runs.get(run_id)
     if not run:
         raise HTTPException(status_code=404, detail="unknown run_id")
@@ -263,7 +235,6 @@ async def resume_run(run_id: str, resume: ResumeRequest) -> dict:
 
 @app.get("/leads/{run_id}")
 async def get_run(run_id: str) -> dict:
-    """Final state of a run (for clients that missed the end of the stream)."""
     run = _runs.get(run_id)
     if not run:
         raise HTTPException(status_code=404, detail="unknown run_id")
