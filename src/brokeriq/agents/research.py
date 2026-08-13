@@ -10,6 +10,17 @@ from . import prompts
 logger = logging.getLogger(__name__)
 
 
+def _wrap_user_input(text: str) -> str:
+    """Sanitize a user-controlled string for safe inclusion in an LLM prompt.
+
+    Strips newlines (which can break XML-boundary prompt-injection defences)
+    and wraps the result in <user_input>...</user_input> so the model can
+    distinguish untrusted input from instructions.
+    """
+    sanitized = text.replace("\n", " ").replace("\r", " ")
+    return f"<user_input>{sanitized}</user_input>"
+
+
 async def research_node(state: dict) -> dict:
     lead = state["lead"]
     logger.info("research: %s", lead.company_name)
@@ -29,9 +40,9 @@ async def research_node(state: dict) -> dict:
             {
                 "role": "user",
                 "content": (
-                    f"Company: {lead.company_name}\n"
+                    f"Company: {_wrap_user_input(lead.company_name)}\n"
                     f"Domain: {lead.domain or 'unknown'}\n"
-                    f"Reported industry: {lead.industry or 'unknown'}\n"
+                    f"Reported industry: {_wrap_user_input(lead.industry or 'unknown')}\n"
                     f"NAICS guess: {naics_text}\n"
                     f"Web search results:\n{snippet_text or 'no results'}"
                 ),
