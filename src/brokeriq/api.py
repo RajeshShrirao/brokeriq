@@ -14,6 +14,7 @@ from any process with the same run_id.
 
 import json
 import logging
+import re
 import time
 import uuid
 from collections import defaultdict, deque
@@ -43,10 +44,31 @@ _rate_windows: dict[str, deque] = defaultdict(deque)
 RATE_LIMIT = {"create": (30, 60.0), "stream": (120, 60.0)}  # (max_requests, window_seconds)
 
 
+def _client_ip(request: Request) -> str:
+    """Resolve the real client IP behind a reverse proxy.
+
+    Parses X-Forwarded-For / CF-Connecting-IP with strict validation so that
+    a shared proxy does not cause all users to share one rate-limit key.
+    """
+    proxy = request.headers.get("X-Forwarded-For") or request.headers.get(
+        "CF-Connecting-IP"
+    )
+    if proxy:
+        # X-Forwarded-For may carry a chain; take the leftmost (client) entry.
+        candidate = proxy.split(",")[0].strip()
+        if re.fullmatch(r"[0-9a-fA-F:]+", candidate):
+            return candidate
+    if request.client:
+        host = request.client.host
+        if re.fullmatch(r"[0-9a-fA-F:]+", host):
+            return host
+    return "unknown"
+
+
 def _check_rate_limit(request: Request, bucket: str) -> None:
     max_req, window = RATE_LIMIT[bucket]
     now = time.monotonic()
-    ip = request.client.host if request.client else "unknown"
+    ip = _client_ip(request)
     window_deque = _rate_windows[f"{bucket}:{ip}"]
     while window_deque and window_deque[0] < now - window:
         window_deque.popleft()
