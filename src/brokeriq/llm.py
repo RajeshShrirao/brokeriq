@@ -65,13 +65,9 @@ async def complete_json(
     output (markdown fences, trailing prose, etc.).
     """
     import json
-    import re
 
     raw = await complete(messages=messages, model=model, temperature=temperature, json_mode=True)
-    text = raw.strip()
-    fenced = re.match(r"^```(?:json)?\s*(.*?)\s*```$", text, re.DOTALL)
-    if fenced:
-        text = fenced.group(1)
+    text = _strip_fence(raw.strip())
 
     try:
         return json.loads(text)
@@ -87,8 +83,18 @@ async def complete_json(
             }
         ]
         raw = await complete(messages=corrected, model=model, temperature=temperature, json_mode=True)
-        text = raw.strip()
-        fenced = re.match(r"^```(?:json)?\s*(.*?)\s*```$", text, re.DOTALL)
-        if fenced:
-            text = fenced.group(1)
+        text = _strip_fence(raw.strip())
         return json.loads(text)
+
+
+def _strip_fence(text: str) -> str:
+    """Extract JSON content from a fenced code block, handling embedded preamble.
+
+    Uses re.search (not re.match) so preamble text before the fence doesn't
+    break extraction. Returns the inner content of the fence, or the original
+    text unchanged if no fence is present.
+    """
+    import re
+
+    m = re.search(r"```(?:json)?\s*\n?(.*?)\s*```", text, re.DOTALL)
+    return m.group(1) if m else text
