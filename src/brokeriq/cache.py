@@ -18,6 +18,7 @@ import hashlib
 import json
 import logging
 from collections import deque
+from typing import Self
 
 import numpy as np
 from redis.asyncio import Redis
@@ -42,17 +43,28 @@ class SemanticCache:
         self._lock = asyncio.Lock()
 
     @classmethod
-    async def from_settings(cls) -> "SemanticCache":
+    async def from_settings(cls) -> Self:
+        """Build a SemanticCache from app settings, validating Redis connectivity.
+
+        Raises RedisConnectionError if the Redis server cannot be reached,
+        so the service fails fast at startup rather than deferring the first
+        connectivity error to the first cache lookup.
+        """
         settings = get_settings()
-        redis = None
+        redis = await cls._validate_redis(settings.redis_url)
+        return cls(redis=redis, ttl=settings.cache_ttl, threshold=settings.cache_similarity_threshold)
+
+    @classmethod
+    async def _validate_redis(cls, redis_url: str) -> Redis | None:
+        """Return a connected Redis client, or None in degraded (no-op) mode."""
         try:
-            redis = Redis.from_url(settings.redis_url, socket_connect_timeout=1, decode_responses=True)
+            redis = Redis.from_url(redis_url, socket_connect_timeout=1, decode_responses=True)
             await redis.ping()
-            logger.info("semantic cache connected to %s", settings.redis_url)
+            logger.info("semantic cache connected to %s", redis_url)
+            return redis
         except Exception:
             logger.warning("redis unavailable; semantic cache running in degraded (no-op) mode")
-            redis = None
-        return cls(redis=redis, ttl=settings.cache_ttl, threshold=settings.cache_similarity_threshold)
+            return None
 
     async def get(self, query: str, embedding: list[float]) -> list[dict] | None:
         exact = await self._exact_get(query)
