@@ -78,3 +78,4 @@ class AgentState(TypedDict, total=False):
     messages: Annotated[list, add_messages]
     run_id: str
     completed_stages: set[str]
+    usage_metadata: dict | None

@@ -15,7 +15,7 @@ async def report_node(state: dict) -> dict:
     qualification = state.get("qualification")
     logger.info("report: %s", lead.company_name)
 
-    raw = await llm.complete_json(
+    raw, usage = await llm.complete_json(
         [
             {"role": "system", "content": prompts.REPORT},
             {
@@ -34,8 +34,14 @@ async def report_node(state: dict) -> dict:
     )
 
     brief = LeadBrief.model_validate(raw)
+    existing = state.get("usage_metadata") or {"total_tokens": 0, "cost": 0.0}
+    updated = {
+        "total_tokens": existing.get("total_tokens", 0) + (usage or {}).get("total_tokens", 0),
+        "cost": existing.get("cost", 0.0) + (usage or {}).get("cost", 0.0),
+    }
     return {
         "brief": brief,
         "completed_stages": {"report"},
         "messages": [{"role": "assistant", "content": f"Brief ready: {brief.headline}"}],
+        "usage_metadata": updated,
     }

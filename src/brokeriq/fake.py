@@ -18,11 +18,11 @@ class FakeLLM:
     async def complete(self, messages, model=None, temperature=0.0, json_mode=False, max_tokens=None):
         content = self._respond(messages)
         if json_mode:
-            return json.dumps(content)
-        return str(content)
+            return json.dumps(content), None
+        return str(content), None
 
     async def complete_json(self, messages, model=None, temperature=0.0):
-        return self._respond(messages)
+        return self._respond(messages), None
 
     def _respond(self, messages) -> dict:
         system = next((m["content"] for m in messages if m.get("role") == "system"), "")

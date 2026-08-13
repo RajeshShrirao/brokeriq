@@ -215,9 +215,11 @@ async def stream_run(run_id: str, request: Request):
             "brief": final.values.get("brief").model_dump() if final.values.get("brief") else None,
             "memory_ops": len(final.values.get("memory_ops") or []),
             "duration_seconds": duration,
-            "tokens_used": 1420,
-            "cost_usd": 0.0018,
         }
+        usage = final.values.get("usage_metadata")
+        if usage:
+            summary["tokens_used"] = usage.get("total_tokens")
+            summary["cost_usd"] = usage.get("cost")
         yield {"event": "run_complete", "data": json.dumps(summary, default=str)}
 
     return EventSourceResponse(event_generator())
@@ -244,16 +246,19 @@ async def resume_run(run_id: str, resume: ResumeRequest) -> dict:
     brief = result.get("brief")
     start_time = run.get("start_time", time.monotonic())
     duration = round(time.monotonic() - start_time, 2)
-    return {
+    response = {
         "run_id": run_id,
         "verdict": qualification.verdict if qualification else None,
         "icp_score": qualification.icp_score if qualification else None,
         "brief": brief.model_dump() if brief else None,
         "memory_ops": len(result.get("memory_ops") or []),
         "duration_seconds": duration,
-        "tokens_used": 1650,
-        "cost_usd": 0.0021,
     }
+    usage = result.get("usage_metadata")
+    if usage:
+        response["tokens_used"] = usage.get("total_tokens")
+        response["cost_usd"] = usage.get("cost")
+    return response
 
 
 @app.get("/leads/{run_id}")

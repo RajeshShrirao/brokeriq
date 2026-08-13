@@ -29,6 +29,7 @@ async def supervisor_node(state: dict) -> dict:
     lead = state["lead"]
     research = state.get("research")
     qualification = state.get("qualification")
+    logger.info("supervisor: %s", lead.company_name)
 
     state_summary = (
         f"Company: {lead.company_name}\n"
@@ -39,8 +40,9 @@ async def supervisor_node(state: dict) -> dict:
         f"completed_stages: {state.get('completed_stages') or set()}"
     )
 
+    usage = None
     try:
-        raw = await llm.complete_json(
+        raw, usage = await llm.complete_json(
             [
                 {"role": "system", "content": prompts.SUPERVISOR},
                 {"role": "user", "content": f"State summary:\n{state_summary}"},
@@ -65,4 +67,9 @@ async def supervisor_node(state: dict) -> dict:
         next_stage = _fallback_next(state)
 
     logger.info("supervisor routing -> %s", next_stage)
-    return {"next_stage": next_stage}
+    existing = state.get("usage_metadata") or {"total_tokens": 0, "cost": 0.0}
+    updated = {
+        "total_tokens": existing.get("total_tokens", 0) + (usage or {}).get("total_tokens", 0),
+        "cost": existing.get("cost", 0.0) + (usage or {}).get("cost", 0.0),
+    }
+    return {"next_stage": next_stage, "usage_metadata": updated}

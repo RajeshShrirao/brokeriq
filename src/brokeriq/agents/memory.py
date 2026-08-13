@@ -23,7 +23,7 @@ async def memory_node(state: dict) -> dict:
     brief = state.get("brief")
     logger.info("memory extraction: %s", lead.company_name)
 
-    raw = await llm.complete_json(
+    raw, usage = await llm.complete_json(
         [
             {"role": "system", "content": prompts.MEMORY},
             {
@@ -43,7 +43,12 @@ async def memory_node(state: dict) -> dict:
     ops = [MemoryOp.model_validate(op) for op in raw.get("ops", [])]
     applied = await _apply_ops(ops)
     logger.info("memory ops: %d extracted, %d applied", len(ops), len(applied))
-    return {"memory_ops": ops, "completed_stages": {"memory"}}
+    existing = state.get("usage_metadata") or {"total_tokens": 0, "cost": 0.0}
+    updated = {
+        "total_tokens": existing.get("total_tokens", 0) + (usage or {}).get("total_tokens", 0),
+        "cost": existing.get("cost", 0.0) + (usage or {}).get("cost", 0.0),
+    }
+    return {"memory_ops": ops, "completed_stages": {"memory"}, "usage_metadata": updated}
 
 async def _apply_ops(ops: list[MemoryOp]) -> list[MemoryOp]:
     """Persist non-NOOP ops to the graph's store; skip cleanly if no store."""
