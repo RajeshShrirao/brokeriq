@@ -24,8 +24,27 @@ from .store import memory_store_scope
 logger = logging.getLogger(__name__)
 
 _runs: dict[str, dict] = {}
+_runs_created: dict[str, float] = {}
+_runs_ttl: float = 300.0  # 5 minutes — completed runs evicted after TTL
+
 _rate_windows: dict[str, deque] = defaultdict(deque)
+_rate_windows_last_seen: dict[str, float] = {}
+_rate_windows_ttl: float = 300.0  # inactive IP keys evicted after TTL
 RATE_LIMIT = {"create": (30, 60.0), "stream": (120, 60.0)}
+
+
+def _evict_stale() -> None:
+    now = time.monotonic()
+    # Evict stale _runs entries
+    stale_runs = [rid for rid, ts in _runs_created.items() if now - ts > _runs_ttl]
+    for rid in stale_runs:
+        _runs.pop(rid, None)
+        _runs_created.pop(rid, None)
+    # Evict stale _rate_windows keys
+    stale_keys = [k for k, ts in _rate_windows_last_seen.items() if now - ts > _rate_windows_ttl]
+    for k in stale_keys:
+        _rate_windows.pop(k, None)
+        _rate_windows_last_seen.pop(k, None)
 
 
 def _client_ip(request: Request) -> str:
@@ -40,10 +59,12 @@ def _client_ip(request: Request) -> str:
 
 
 def _check_rate_limit(request: Request, bucket: str) -> None:
+    _evict_stale()
     max_req, window = RATE_LIMIT[bucket]
     now = time.monotonic()
     ip = _client_ip(request)
     window_deque = _rate_windows[f"{bucket}:{ip}"]
+    _rate_windows_last_seen[f"{bucket}:{ip}"] = now
     while window_deque and window_deque[0] < now - window:
         window_deque.popleft()
     if len(window_deque) >= max_req:
@@ -138,6 +159,7 @@ async def create_lead(lead: LeadInput, request: Request) -> dict:
         "lead": lead.model_dump(),
         "start_time": time.monotonic(),
     }
+    _runs_created[run_id] = time.monotonic()
     logger.info("run %s created for %s", run_id, lead.company_name)
     return {"run_id": run_id, "stream_url": f"/leads/{run_id}/stream"}
 

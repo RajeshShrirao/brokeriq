@@ -124,3 +124,47 @@ def _strip_fence(text: str) -> str:
 
     m = re.search(r"```(?:json)?\s*\n?(.*?)\s*```", text, re.DOTALL)
     return m.group(1) if m else text
+
+
+class LLM:
+    """Thin wrapper around a completion strategy.
+
+    When ``strategy`` is provided (e.g. ``FakeLLM`` in offline/test mode),
+    ``complete`` and ``complete_json`` delegate to it. When ``strategy`` is
+    ``None`` (production), calls fall through to the module-level functions.
+    """
+
+    def __init__(self, *, strategy=None) -> None:
+        self.strategy = strategy
+
+    async def complete(
+        self,
+        messages: list[dict],
+        model: str | None = None,
+        temperature: float = 0.2,
+        max_tokens: int | None = None,
+        json_mode: bool = False,
+    ) -> tuple[str, dict | None]:
+        if self.strategy is not None:
+            return await self.strategy.complete(
+                messages=messages,
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                json_mode=json_mode,
+            )
+        return await complete(messages=messages, model=model, temperature=temperature, max_tokens=max_tokens, json_mode=json_mode)
+
+    async def complete_json(
+        self,
+        messages: list[dict],
+        model: str | None = None,
+        temperature: float = 0.0,
+    ) -> tuple[dict, dict | None]:
+        if self.strategy is not None:
+            return await self.strategy.complete_json(
+                messages=messages,
+                model=model,
+                temperature=temperature,
+            )
+        return await complete_json(messages=messages, model=model, temperature=temperature)

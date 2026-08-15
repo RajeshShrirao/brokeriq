@@ -22,4 +22,9 @@ RUN uv sync --frozen --no-dev
 
 EXPOSE 8000
 
+# Default to dev; override at runtime for prod:
+#   docker compose run --rm api env BROKERIQ_ENV=prod [...]
+ENV BROKERIQ_ENV=dev \
+    BROKERIQ_LOG_LEVEL=INFO
+
 CMD ["uv", "run", "uvicorn", "brokeriq.api:app", "--host", "0.0.0.0", "--port", "8000"]
