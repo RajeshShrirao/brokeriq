@@ -47,6 +47,11 @@ def _evict_stale() -> None:
         _rate_windows_last_seen.pop(k, None)
 
 
+def _ensure_bounded() -> None:
+    """Evict stale entries from all in-memory state so the process never grows unbounded."""
+    _evict_stale()
+
+
 def _client_ip(request: Request) -> str:
     proxy = request.headers.get("X-Forwarded-For") or request.headers.get("CF-Connecting-IP")
     if proxy:
@@ -152,6 +157,7 @@ async def healthz() -> dict:
 
 @app.post("/leads")
 async def create_lead(lead: LeadInput, request: Request) -> dict:
+    _ensure_bounded()
     _check_rate_limit(request, "create")
     run_id = uuid.uuid4().hex[:12]
     _runs[run_id] = {
@@ -222,6 +228,7 @@ async def stream_run(run_id: str, request: Request):
 
 @app.post("/leads/{run_id}/resume")
 async def resume_run(run_id: str, resume: ResumeRequest) -> dict:
+    _ensure_bounded()
     run = _runs.get(run_id)
     if not run:
         raise HTTPException(status_code=404, detail="unknown run_id")
@@ -257,6 +264,7 @@ async def resume_run(run_id: str, resume: ResumeRequest) -> dict:
 
 @app.get("/leads/{run_id}")
 async def get_run(run_id: str) -> dict:
+    _ensure_bounded()
     run = _runs.get(run_id)
     if not run:
         raise HTTPException(status_code=404, detail="unknown run_id")
